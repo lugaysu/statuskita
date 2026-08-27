@@ -217,11 +217,6 @@ export type NotificationDelivery = z.infer<typeof notificationDeliverySchema>
  * Optional outbound notification targets. Every field is optional so existing
  * configs without a `notifications` block keep parsing unchanged; `delivery`
  * defaults to `inline` so adding it never changes existing behavior.
- */
-/**
- * Optional outbound notification targets. Every field is optional so existing
- * configs without a `notifications` block keep parsing unchanged; `delivery`
- * defaults to `inline` so adding it never changes existing behavior.
  *
  * `telegram.chatId` is the only Telegram setting held here — the bot token is a
  * Cloudflare secret (`TELEGRAM_BOT_TOKEN`) supplied to the Worker at runtime,

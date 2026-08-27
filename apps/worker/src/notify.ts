@@ -2,15 +2,30 @@ import type { Notifications, StatusChangePayload } from '@statusbeam/core'
 import type { Env } from './env'
 import { toSlackMessage, toTelegramMessage } from '@statusbeam/core'
 
+export type NotificationChannel = 'slack' | 'telegram' | 'webhook'
+
 /**
- * A single ready-to-POST notification: one target URL and its JSON body. Slack
- * carries its Block Kit message; Telegram carries its Bot API `sendMessage`
- * body (the token is embedded in the URL target) and generic webhooks carry the
- * channel-agnostic payload. This is the wire shape for both delivery modes —
- * inline dispatch POSTs it directly; queue dispatch enqueues it as one message.
+ * A single ready-to-POST notification, discriminated by channel so the delivery
+ * layer can construct each target's wire URL at POST time:
+ *
+ * - `slack` and `webhook` carry their target `url` directly.
+ * - `telegram` deliberately carries **no** target URL: the Bot API send URL
+ *   embeds the bot token (`/bot<TOKEN>/sendMessage`), which is a Cloudflare
+ *   secret and must never be serialized — a Queue message is persisted
+ *   (and a dead-lettered message survives indefinitely). So the message only
+ *   carries `chatId`; the delivery layer builds the URL just-in-time from the
+ *   consumer Env secret (`TELEGRAM_BOT_TOKEN`). Inline delivery may construct
+ *   it transiently the same way.
+ *
+ * This is the wire shape for both delivery modes — inline dispatch POSTs it
+ * directly; queue dispatch enqueues it as one message.
  */
 export interface NotificationMessage {
+  kind: NotificationChannel
+  /** Target URL for `slack` / `webhook` messages; `''` for `telegram`. */
   url: string
+  /** Telegram chat/channel target; meaningful only when `kind === 'telegram'`. */
+  chatId: string | number
   body: unknown
 }
 
@@ -18,43 +33,51 @@ export interface NotificationMessage {
 const QUEUE_BATCH_LIMIT = 100
 
 /**
+ * Resolve the wire URL for a message, injecting the secret **only** when a
+ * `telegram` message is actually being delivered. Returns `undefined` when a
+ * Telegram message has no token — the caller skips (isolates) that single
+ * target so one missing secret never fails the run.
+ */
+function targetUrl(message: NotificationMessage, telegramToken: string | undefined): string | undefined {
+  if (message.kind === 'telegram') {
+    return telegramToken
+      ? `https://api.telegram.org/bot${telegramToken}/sendMessage`
+      : undefined
+  }
+  return message.url
+}
+
+/**
  * Fan a status-change payload out into one {@link NotificationMessage} per
  * configured target. Shared by both delivery modes so they dispatch to exactly
  * the same set of targets with the same bodies.
  *
- * `telegramToken` is the operator-supplied bot token (a Cloudflare secret,
- * never in config). It is embedded in the Telegram Bot API URL; the per-target
- * URL is the only place the token lives and `redactUrl` keeps it out of logs.
- * When Telegram is configured but the token is absent, the target is skipped
- * (logged) so a missing secret degrades one channel, not the whole run.
+ * The bot token is **never** involved here — Telegram messages carry only the
+ * `chatId` plus their formatted body. The token is injected solely at delivery
+ * time (see {@link deliverNotification}) from the consumer Env secret, so no
+ * serialized queue payload can ever contain it.
  */
 export function buildNotificationMessages(
   notifications: Notifications | undefined,
   payload: StatusChangePayload,
-  telegramToken?: string,
 ): NotificationMessage[] {
   if (!notifications) {
     return []
   }
   const messages: NotificationMessage[] = []
   if (notifications.slack) {
-    messages.push({ url: notifications.slack.webhookUrl, body: toSlackMessage(payload) })
+    messages.push({ kind: 'slack', url: notifications.slack.webhookUrl, chatId: '', body: toSlackMessage(payload) })
   }
   if (notifications.telegram) {
-    if (telegramToken) {
-      messages.push({
-        url: `https://api.telegram.org/bot${telegramToken}/sendMessage`,
-        body: toTelegramMessage(payload, notifications.telegram.chatId),
-      })
-    }
-    else {
-      console.warn(
-        'notify: telegram is configured in status.config.yml but the TELEGRAM_BOT_TOKEN secret is missing; skipping the Telegram target',
-      )
-    }
+    messages.push({
+      kind: 'telegram',
+      url: '',
+      chatId: notifications.telegram.chatId,
+      body: toTelegramMessage(payload, notifications.telegram.chatId),
+    })
   }
   for (const hook of notifications.webhooks ?? []) {
-    messages.push({ url: hook.url, body: payload })
+    messages.push({ kind: 'webhook', url: hook.url, chatId: '', body: payload })
   }
   return messages
 }
@@ -83,7 +106,7 @@ export async function notify(
 ): Promise<void> {
   if (notifications?.delivery === 'queue') {
     if (env.NOTIFY_QUEUE) {
-      const messages = buildNotificationMessages(notifications, payload, env.TELEGRAM_BOT_TOKEN)
+      const messages = buildNotificationMessages(notifications, payload)
       if (messages.length === 0) {
         return
       }
@@ -105,7 +128,7 @@ export async function notify(
         // messages would double-deliver them. Log with the file's `notify:`
         // style (counts, never payload contents).
         console.error(`notify: enqueue failed after ${enqueued}/${messages.length} message(s); dispatching the rest inline`, err)
-        await postAll(fetchImpl, messages.slice(enqueued))
+        await postAll(fetchImpl, messages.slice(enqueued), env.TELEGRAM_BOT_TOKEN)
         return
       }
     }
@@ -133,12 +156,16 @@ export async function dispatchNotifications(
   fetchImpl: typeof fetch = fetch,
   telegramToken?: string,
 ): Promise<void> {
-  await postAll(fetchImpl, buildNotificationMessages(notifications, payload, telegramToken))
+  await postAll(fetchImpl, buildNotificationMessages(notifications, payload), telegramToken)
 }
 
 /** POST every message inline, swallowing individual failures. */
-async function postAll(fetchImpl: typeof fetch, messages: NotificationMessage[]): Promise<void> {
-  await Promise.allSettled(messages.map(m => postJson(fetchImpl, m)))
+async function postAll(
+  fetchImpl: typeof fetch,
+  messages: NotificationMessage[],
+  telegramToken?: string,
+): Promise<void> {
+  await Promise.allSettled(messages.map(m => postJson(fetchImpl, m, telegramToken)))
 }
 
 /**
@@ -148,15 +175,20 @@ async function postAll(fetchImpl: typeof fetch, messages: NotificationMessage[])
  * queue — so a persistently failing target surfaces there, never silently
  * dropped. Messages are settled independently so one bad target doesn't force
  * healthy ones to redeliver.
+ *
+ * `telegramToken` is the consumer's own Env secret (`TELEGRAM_BOT_TOKEN`): the
+ * queued Telegram message contains no token, so delivery injects it here — and
+ * only here — via {@link deliverNotification}.
  */
 export async function consumeNotificationBatch(
   batch: MessageBatch<NotificationMessage>,
   fetchImpl: typeof fetch = fetch,
+  telegramToken?: string,
 ): Promise<void> {
   await Promise.all(
     batch.messages.map(async (message) => {
       try {
-        await deliverNotification(message.body, fetchImpl)
+        await deliverNotification(message.body, fetchImpl, telegramToken)
       }
       catch (err) {
         // Delivery failed — retry so Queues re-delivers and eventually
@@ -189,12 +221,28 @@ export async function consumeNotificationBatch(
  * POST one notification message. Throws on a network error or a non-2xx
  * response so the queue consumer retries (and eventually dead-letters) it. The
  * inline path wraps this in {@link postJson} to swallow failures instead.
+ *
+ * The Telegram Bot API URL is constructed **here**, at delivery time, from the
+ * supplied token — the token never lives in a stored message. When a Telegram
+ * message has no token, it is isolated (logged and skipped) rather than
+ * retried: a missing secret will never become available later, so retrying
+ * would only wedge the queue.
  */
 export async function deliverNotification(
   message: NotificationMessage,
   fetchImpl: typeof fetch = fetch,
+  telegramToken?: string,
 ): Promise<void> {
-  const res = await fetchImpl(message.url, {
+  const url = targetUrl(message, telegramToken)
+  if (url === undefined) {
+    // `kind === 'telegram'` without a token. Skip only this target; treat the
+    // delivery as successful so the queue acks (a retry could never succeed).
+    console.warn(
+      'notify: telegram is configured but the TELEGRAM_BOT_TOKEN secret is missing; skipping the Telegram target',
+    )
+    return
+  }
+  const res = await fetchImpl(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(message.body),
@@ -204,7 +252,7 @@ export async function deliverNotification(
     signal: AbortSignal.timeout(10_000),
   })
   if (!res.ok) {
-    throw new Error(`POST ${redactUrl(message.url)} failed (${res.status})`)
+    throw new Error(`POST ${redactUrl(url)} failed (${res.status})`)
   }
 }
 
@@ -219,13 +267,17 @@ function redactUrl(url: string): string {
 }
 
 /** Inline variant of {@link deliverNotification}: logs failures, never throws. */
-async function postJson(fetchImpl: typeof fetch, message: NotificationMessage): Promise<void> {
+async function postJson(
+  fetchImpl: typeof fetch,
+  message: NotificationMessage,
+  telegramToken?: string,
+): Promise<void> {
   try {
-    await deliverNotification(message, fetchImpl)
+    await deliverNotification(message, fetchImpl, telegramToken)
   }
   catch (err) {
     // A non-2xx error already names the target; a thrown fetch (network failure)
     // does not, so include the redacted URL either way.
-    console.error(`notify: POST ${redactUrl(message.url)} failed`, err)
+    console.error(`notify: POST ${redactUrl(targetUrl(message, telegramToken) ?? '<invalid url>')} failed`, err)
   }
 }

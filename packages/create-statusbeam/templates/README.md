@@ -1,6 +1,6 @@
 # StatusKita status page
 
-Your own [StatusKita](https://github.com/pleaseai/statusbeam) status page, deployed
+Your own [StatusKita](https://github.com/lugaysu/statuskita) status page, deployed
 to Cloudflare. This repo holds only *your* config — the app itself is a versioned
 dependency (`@statusbeam/cli` + the worker/web packages), so upgrading is a
 `statusbeam update`, not a fork-merge.

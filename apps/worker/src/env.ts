@@ -38,11 +38,13 @@ export interface Env {
   WEBHOOK_SECRET?: string
   /**
    * Telegram bot token used to send status-change notifications to a chat.
-   * Read by {@link buildNotificationMessages} in notify.ts, which embeds it in
-   * the Bot API `sendMessage` URL — the URL is redacted (origin only) in every
-   * log, so the token never appears in output. It is a secret: set it with
-   * `wrangler secret put TELEGRAM_BOT_TOKEN` and never commit it or put it in
-   * the KV `config` document. When Telegram is configured in `notifications`
+   * Injected by {@link deliverNotification} in notify.ts **only at delivery
+   * time** to build the Bot API `sendMessage` URL — it is never serialized into
+   * a Queue message (a Telegram {@link NotificationMessage} carries just the
+   * `chatId`), never placed in YAML, and the URL is redacted (origin only) in
+   * every log, so the token never appears in output. It is a secret: set it
+   * with `wrangler secret put TELEGRAM_BOT_TOKEN` and never commit it or put it
+   * in the KV `config` document. When Telegram is configured in `notifications`
    * but this secret is unset, only the Telegram target is skipped (logged), not
    * the whole run.
    */

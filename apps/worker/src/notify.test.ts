@@ -54,35 +54,44 @@ describe('buildNotificationMessages', () => {
     expect(messages[1]?.body).toEqual(payload)
   })
 
-  it('emits a Telegram message at /bot<TOKEN>/sendMessage with a formatted body', () => {
+  it('emits a Telegram message carrying only the chat target and formatted body — no token, no URL', () => {
     const messages = buildNotificationMessages(
       { delivery: 'inline', telegram: { chatId: -1001234567890 } },
       payload,
-      '123456:SECRET_TOKEN',
     )
     expect(messages).toHaveLength(1)
-    // The token lives in the URL, never in the body.
-    expect(messages[0]?.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
-    expect((messages[0]?.body as { chat_id: number }).chat_id).toBe(-1001234567890)
+    const telegram = messages[0] as NotificationMessage
+    expect(telegram.kind).toBe('telegram')
+    // The secret never lives on the message: no URL is built here, only the
+    // `chatId` target (safe to persist) and the formatted body.
+    expect(telegram.url).toBe('')
+    expect(telegram.chatId).toBe(-1001234567890)
+    const serialized = JSON.stringify(messages)
+    expect(serialized).not.toContain('SECRET_TOKEN')
+    expect(serialized).not.toContain('api.telegram.org')
+    expect((telegram.body as { chat_id: number }).chat_id).toBe(-1001234567890)
   })
 
-  it('skips Telegram (and only Telegram) when the bot token is missing', () => {
+  it('fans out Slack + Telegram + webhooks to the same set of targets', () => {
     const messages = buildNotificationMessages(
       {
         delivery: 'inline',
+        slack: { webhookUrl: 'https://hooks.slack.com/services/T/B/X' },
         telegram: { chatId: -1001234567890 },
         webhooks: [{ url: 'https://example.com/a' }],
       },
       payload,
     )
-    // The webhook still fans out; the Telegram target is dropped (its secret is
-    // absent) so one missing secret can't fail the whole run.
-    expect(messages.map(m => m.url)).toEqual(['https://example.com/a'])
+    expect(messages.map(m => [m.kind, m.chatId])).toEqual([
+      ['slack', ''],
+      ['telegram', -1001234567890],
+      ['webhook', ''],
+    ])
   })
 })
 
 describe('deliverNotification', () => {
-  const message: NotificationMessage = { url: 'https://example.com/hook', body: payload }
+  const message: NotificationMessage = { kind: 'webhook', url: 'https://example.com/hook', chatId: '', body: payload }
 
   it('resolves on a 2xx response', async () => {
     const { impl, calls } = fakeFetch(() => ({ ok: true, status: 200 }))
@@ -96,17 +105,47 @@ describe('deliverNotification', () => {
     await expect(deliverNotification(message, impl)).rejects.toThrow(/500/)
   })
 
+  it('builds the Bot API URL from the injected token at delivery time', async () => {
+    const telegramMessage: NotificationMessage = {
+      kind: 'telegram',
+      url: '',
+      chatId: -1001234567890,
+      body: { chat_id: -1001234567890, text: 'down' },
+    }
+    const { impl, calls } = fakeFetch(() => ({ ok: true, status: 200 }))
+    // The stored message has no URL/token — the token is supplied here, at
+    // delivery, and the URL is derived just-in-time.
+    await deliverNotification(telegramMessage, impl, '123456:SECRET_TOKEN')
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
+  })
+
   it('redacts a Telegram token from the error (origin only, never the secret)', async () => {
     const telegramMessage: NotificationMessage = {
-      url: 'https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage',
+      kind: 'telegram',
+      url: '',
+      chatId: -1001234567890,
       body: { chat_id: -1001234567890, text: 'down' },
     }
     const { impl } = fakeFetch(() => ({ ok: false, status: 403 }))
     // The thrown error names the host, never the token embedded in the URL path.
-    await expect(deliverNotification(telegramMessage, impl)).rejects.toThrow(
+    await expect(deliverNotification(telegramMessage, impl, '123456:SECRET_TOKEN')).rejects.toThrow(
       'https://api.telegram.org',
     )
-    await expect(deliverNotification(telegramMessage, impl)).rejects.not.toThrow('SECRET_TOKEN')
+    await expect(deliverNotification(telegramMessage, impl, '123456:SECRET_TOKEN')).rejects.not.toThrow('SECRET_TOKEN')
+  })
+
+  it('isolates a Telegram target (no POST) when the token is missing', async () => {
+    const telegramMessage: NotificationMessage = {
+      kind: 'telegram',
+      url: '',
+      chatId: -1001234567890,
+      body: { chat_id: -1001234567890, text: 'down' },
+    }
+    const { impl, calls } = fakeFetch(() => ({ ok: true, status: 200 }))
+    // Missing secret → skipped, not thrown/retried (a retry could never succeed).
+    await expect(deliverNotification(telegramMessage, impl)).resolves.toBeUndefined()
+    expect(calls).toHaveLength(0)
   })
 
   it('propagates a thrown fetch (network failure)', async () => {
@@ -163,6 +202,7 @@ describe('notify (transport selection)', () => {
       'https://hooks.slack.com/services/T/B/X',
       'https://example.com/a',
     ])
+    expect(sent[0]?.map(m => m.body.kind)).toEqual(['slack', 'webhook'])
     // The enqueued body content survives the { body } wrap: Slack gets its
     // formatted message, the generic webhook gets the raw payload.
     expect((sent[0]?.[0]?.body.body as { blocks: unknown[] }).blocks.length).toBeGreaterThan(0)
@@ -220,7 +260,7 @@ describe('notify (transport selection)', () => {
     expect(calls.map(c => c.url)).toEqual(['https://example.com/a'])
   })
 
-  it('threads the bot token from the env secret into the Telegram target on the queue path', async () => {
+  it('never serializes the bot token into the queue payload — Telegram carries only chatId', async () => {
     const { env, sent } = queueEnv('record')
     env.TELEGRAM_BOT_TOKEN = '123456:SECRET_TOKEN'
     await notify(
@@ -229,7 +269,45 @@ describe('notify (transport selection)', () => {
       payload,
     )
     expect(sent).toHaveLength(1)
-    expect(sent[0]?.[0]?.body.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
+    const queued = sent[0]?.[0]?.body as NotificationMessage
+    expect(queued.kind).toBe('telegram')
+    // The persisted message holds the chat target, not the secret: no URL is
+    // built and no token string survives serialization.
+    expect(queued.url).toBe('')
+    expect(queued.chatId).toBe(-1001234567890)
+    expect(JSON.stringify(sent[0])).not.toContain('SECRET_TOKEN')
+    expect(JSON.stringify(sent[0])).not.toContain('api.telegram.org')
+  })
+
+  it('injects the env secret into the Telegram URL only on the inline path of the queue fallback', async () => {
+    // When the queue path falls back to inline (missing binding), Telegram is
+    // still posted — but the URL with the token is constructed transiently at
+    // delivery, never persisted.
+    const { env } = queueEnv('none')
+    env.TELEGRAM_BOT_TOKEN = '123456:SECRET_TOKEN'
+    const { impl, calls } = fakeFetch(() => ({ ok: true, status: 200 }))
+    await notify(
+      env,
+      { delivery: 'queue', telegram: { chatId: -1001234567890 } },
+      payload,
+      impl,
+    )
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
+  })
+
+  it('isolates Telegram on the queue path when the secret is missing (others still enqueue)', async () => {
+    const { env, sent } = queueEnv('record')
+    await notify(
+      env,
+      { delivery: 'queue', telegram: { chatId: -1001234567890 }, webhooks: [{ url: 'https://example.com/a' }] },
+      payload,
+    )
+    // The webhook is queued; the token-less Telegram message is enqueued too but
+    // carries no token — its delivery is skipped at POST time by the consumer.
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.map(m => m.body.kind)).toEqual(['telegram', 'webhook'])
+    expect(JSON.stringify(sent[0])).not.toContain('api.telegram.org')
   })
 
   it('falls back to inline (with a real POST) when delivery is queue but the binding is missing', async () => {
@@ -262,26 +340,64 @@ function batchOf(messages: NotificationMessage[]) {
   return { batch, outcomes }
 }
 
+/** A webhook NotificationMessage in the current discriminated shape. */
+function webhookMessage(url: string): NotificationMessage {
+  return { kind: 'webhook', url, chatId: '', body: payload }
+}
+
 describe('consumeNotificationBatch (queue consumer)', () => {
   it('acks a message that delivers successfully', async () => {
     const { impl } = fakeFetch(() => ({ ok: true, status: 200 }))
-    const { batch, outcomes } = batchOf([{ url: 'https://example.com/ok', body: payload }])
+    const { batch, outcomes } = batchOf([webhookMessage('https://example.com/ok')])
     await consumeNotificationBatch(batch, impl)
     expect(outcomes).toEqual(['ack'])
   })
 
   it('retries a message whose target fails (so Queues re-delivers / dead-letters)', async () => {
     const { impl } = fakeFetch(() => ({ ok: false, status: 503 }))
-    const { batch, outcomes } = batchOf([{ url: 'https://example.com/bad', body: payload }])
+    const { batch, outcomes } = batchOf([webhookMessage('https://example.com/bad')])
     await consumeNotificationBatch(batch, impl)
     expect(outcomes).toEqual(['retry'])
   })
 
   it('retries a message whose delivery throws (network failure)', async () => {
     const { impl } = fakeFetch(() => new Error('network down'))
-    const { batch, outcomes } = batchOf([{ url: 'https://example.com/bad', body: payload }])
+    const { batch, outcomes } = batchOf([webhookMessage('https://example.com/bad')])
     await consumeNotificationBatch(batch, impl)
     expect(outcomes).toEqual(['retry'])
+  })
+
+  it('injects the env secret into the Telegram URL only during delivery', async () => {
+    // The queued Telegram message (built by buildNotificationMessages) has no
+    // URL/token; the consumer supplies its own env secret at delivery time.
+    const { impl, calls } = fakeFetch(() => ({ ok: true, status: 200 }))
+    const telegram = {
+      kind: 'telegram',
+      url: '',
+      chatId: -1001234567890,
+      body: { chat_id: -1001234567890, text: 'down' },
+    } as NotificationMessage
+    const { batch, outcomes } = batchOf([telegram])
+    await consumeNotificationBatch(batch, impl, '123456:SECRET_TOKEN')
+    expect(outcomes).toEqual(['ack'])
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
+  })
+
+  it('acks a token-less Telegram message without POSTing when the secret is missing', async () => {
+    const { impl, calls } = fakeFetch(() => ({ ok: true, status: 200 }))
+    const telegram = {
+      kind: 'telegram',
+      url: '',
+      chatId: -1001234567890,
+      body: { chat_id: -1001234567890, text: 'down' },
+    } as NotificationMessage
+    const { batch, outcomes } = batchOf([telegram])
+    // No token → the Telegram target is isolated (nothing POSTed) and acked:
+    // retrying could never succeed, so it must not wedge the queue.
+    await consumeNotificationBatch(batch, impl)
+    expect(outcomes).toEqual(['ack'])
+    expect(calls).toHaveLength(0)
   })
 
   it('swallows a post-delivery ack failure without retrying (no duplicate POST)', async () => {
@@ -289,7 +405,7 @@ describe('consumeNotificationBatch (queue consumer)', () => {
     let retried = false
     const batch = {
       messages: [{
-        body: { url: 'https://example.com/ok', body: payload },
+        body: webhookMessage('https://example.com/ok'),
         ack: () => { throw new Error('already settled') },
         retry: () => { retried = true },
       }],
@@ -303,7 +419,7 @@ describe('consumeNotificationBatch (queue consumer)', () => {
     const { impl } = fakeFetch(() => ({ ok: false, status: 503 }))
     const batch = {
       messages: [{
-        body: { url: 'https://example.com/bad', body: payload },
+        body: webhookMessage('https://example.com/bad'),
         ack: () => {},
         retry: () => { throw new Error('retry unavailable') },
       }],
@@ -318,8 +434,8 @@ describe('consumeNotificationBatch (queue consumer)', () => {
       url.includes('/bad') ? { ok: false, status: 500 } : { ok: true, status: 200 },
     )
     const { batch, outcomes } = batchOf([
-      { url: 'https://example.com/ok', body: payload },
-      { url: 'https://example.com/bad', body: payload },
+      webhookMessage('https://example.com/ok'),
+      webhookMessage('https://example.com/bad'),
     ])
     await consumeNotificationBatch(batch, impl)
     expect(outcomes).toEqual(['ack', 'retry'])

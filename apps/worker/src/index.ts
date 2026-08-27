@@ -56,7 +56,9 @@ export default {
     return handleWebhook(request, env, ctx)
   },
 
-  async queue(batch: MessageBatch<NotificationMessage>, _env: Env, _ctx: ExecutionContext): Promise<void> {
-    await consumeNotificationBatch(batch)
+  async queue(batch: MessageBatch<NotificationMessage>, env: Env, _ctx: ExecutionContext): Promise<void> {
+    // The queued Telegram message carries only `chatId` (no token); the consumer
+    // injects the Bot API token from its own env secret at delivery time.
+    await consumeNotificationBatch(batch, fetch, env.TELEGRAM_BOT_TOKEN)
   },
 }
