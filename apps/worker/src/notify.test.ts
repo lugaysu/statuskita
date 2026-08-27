@@ -53,6 +53,32 @@ describe('buildNotificationMessages', () => {
     expect((messages[0]?.body as { blocks: unknown[] }).blocks.length).toBeGreaterThan(0)
     expect(messages[1]?.body).toEqual(payload)
   })
+
+  it('emits a Telegram message at /bot<TOKEN>/sendMessage with a formatted body', () => {
+    const messages = buildNotificationMessages(
+      { delivery: 'inline', telegram: { chatId: -1001234567890 } },
+      payload,
+      '123456:SECRET_TOKEN',
+    )
+    expect(messages).toHaveLength(1)
+    // The token lives in the URL, never in the body.
+    expect(messages[0]?.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
+    expect((messages[0]?.body as { chat_id: number }).chat_id).toBe(-1001234567890)
+  })
+
+  it('skips Telegram (and only Telegram) when the bot token is missing', () => {
+    const messages = buildNotificationMessages(
+      {
+        delivery: 'inline',
+        telegram: { chatId: -1001234567890 },
+        webhooks: [{ url: 'https://example.com/a' }],
+      },
+      payload,
+    )
+    // The webhook still fans out; the Telegram target is dropped (its secret is
+    // absent) so one missing secret can't fail the whole run.
+    expect(messages.map(m => m.url)).toEqual(['https://example.com/a'])
+  })
 })
 
 describe('deliverNotification', () => {
@@ -68,6 +94,19 @@ describe('deliverNotification', () => {
   it('throws on a non-2xx response (so the queue retries)', async () => {
     const { impl } = fakeFetch(() => ({ ok: false, status: 500 }))
     await expect(deliverNotification(message, impl)).rejects.toThrow(/500/)
+  })
+
+  it('redacts a Telegram token from the error (origin only, never the secret)', async () => {
+    const telegramMessage: NotificationMessage = {
+      url: 'https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage',
+      body: { chat_id: -1001234567890, text: 'down' },
+    }
+    const { impl } = fakeFetch(() => ({ ok: false, status: 403 }))
+    // The thrown error names the host, never the token embedded in the URL path.
+    await expect(deliverNotification(telegramMessage, impl)).rejects.toThrow(
+      'https://api.telegram.org',
+    )
+    await expect(deliverNotification(telegramMessage, impl)).rejects.not.toThrow('SECRET_TOKEN')
   })
 
   it('propagates a thrown fetch (network failure)', async () => {
@@ -179,6 +218,18 @@ describe('notify (transport selection)', () => {
     // Never touched the queue; POSTed the target directly.
     expect(sent).toHaveLength(0)
     expect(calls.map(c => c.url)).toEqual(['https://example.com/a'])
+  })
+
+  it('threads the bot token from the env secret into the Telegram target on the queue path', async () => {
+    const { env, sent } = queueEnv('record')
+    env.TELEGRAM_BOT_TOKEN = '123456:SECRET_TOKEN'
+    await notify(
+      env,
+      { delivery: 'queue', telegram: { chatId: -1001234567890 } },
+      payload,
+    )
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.[0]?.body.url).toBe('https://api.telegram.org/bot123456:SECRET_TOKEN/sendMessage')
   })
 
   it('falls back to inline (with a real POST) when delivery is queue but the binding is missing', async () => {

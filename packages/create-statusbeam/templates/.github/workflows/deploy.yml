@@ -1,6 +1,6 @@
 name: Deploy
 
-# Deploys your StatusBeam status page to Cloudflare via the statusbeam CLI.
+# Deploys your StatusKita status page to Cloudflare via the statusbeam CLI.
 # Runs on push to main and on demand. Provision + first deploy is done locally
 # with `statusbeam setup`; this keeps it deployed on every change.
 on:

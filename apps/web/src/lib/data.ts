@@ -112,7 +112,7 @@ async function getConfig(): Promise<StatusConfig | null> {
     // callers (locale via getLocale, feed title via getPageName).
     if (!warnedNoConfigKey) {
       warnedNoConfigKey = true
-      console.warn('getConfig: no `config` key in KV — locale falls back to default, feed title to "statusbeam"')
+      console.warn('getConfig: no `config` key in KV — locale falls back to default, feed title to "StatusKita"')
     }
   }
   catch (err) {
@@ -142,7 +142,7 @@ export async function getLocale(): Promise<Locale> {
  */
 export async function getPageName(): Promise<string> {
   const config = await getConfig()
-  return config?.name ?? 'statusbeam'
+  return config?.name ?? 'StatusKita'
 }
 
 /** ISO timestamp `hours` before now — keeps sample incidents fresh for `astro dev`. */

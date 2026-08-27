@@ -1,8 +1,8 @@
-# Product Guide — StatusBeam
+# Product Guide — StatusKita
 
 ## Vision
 
-StatusBeam is an open-source, CDN-native **status page generator** — the modern
+StatusKita is an open-source, CDN-native **status page generator** — the modern
 successor to [upptime](https://github.com/upptime/upptime). It monitors services,
 records their uptime as durable time-series data, and publishes a fast,
 good-looking status page rendered entirely at the edge.
@@ -13,20 +13,20 @@ weaknesses.
 
 ## Problem it solves
 
-upptime's design has four structural flaws StatusBeam eliminates:
+upptime's design has four structural flaws StatusKita eliminates:
 
 1. **Client-side rate limits.** upptime's page calls the GitHub API from the
    visitor's browser (unauthenticated, 60 req/h/IP), so popular pages break with
-   "rate limit exceeded". StatusBeam renders every byte at the edge from its own
+   "rate limit exceeded". StatusKita renders every byte at the edge from its own
    store — the browser never talks to a third-party API.
 2. **Unreliable scheduling.** upptime rides GitHub Actions cron (best-effort; a
-   "every 5 min" job can slip 15–60 min). StatusBeam uses Cloudflare Cron
+   "every 5 min" job can slip 15–60 min). StatusKita uses Cloudflare Cron
    Triggers, which fire on time.
 3. **A store that does not scale.** upptime treats git commit history as its
-   database and walks it through a rate-limited API. StatusBeam uses Cloudflare
+   database and walks it through a rate-limited API. StatusKita uses Cloudflare
    D1 + KV, purpose-built for time-series reads.
 4. **An end-of-life frontend.** upptime is built on Svelte 3 + Sapper (both EOL).
-   StatusBeam is Astro + shadcn/ui.
+   StatusKita is Astro + shadcn/ui.
 
 ## Target users
 
@@ -73,4 +73,5 @@ the incident timeline falls back to bundled sample incidents.
 - **Zero servers to babysit** — everything runs on Cloudflare's edge primitives.
 - **Config-as-YAML** — a single `status.config.yml` drives the whole instance.
 - **Edge-first rendering** — the visitor's browser never calls a third-party API.
-- **Open source, MIT-licensed** — published under the `pleaseai` org.
+- **Open source, MIT-licensed** — an independent derivative of
+  [StatusBeam](https://github.com/pleaseai/statusbeam).

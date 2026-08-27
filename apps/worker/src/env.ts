@@ -37,6 +37,17 @@ export interface Env {
    */
   WEBHOOK_SECRET?: string
   /**
+   * Telegram bot token used to send status-change notifications to a chat.
+   * Read by {@link buildNotificationMessages} in notify.ts, which embeds it in
+   * the Bot API `sendMessage` URL — the URL is redacted (origin only) in every
+   * log, so the token never appears in output. It is a secret: set it with
+   * `wrangler secret put TELEGRAM_BOT_TOKEN` and never commit it or put it in
+   * the KV `config` document. When Telegram is configured in `notifications`
+   * but this secret is unset, only the Telegram target is skipped (logged), not
+   * the whole run.
+   */
+  TELEGRAM_BOT_TOKEN?: string
+  /**
    * Sentry auth token for the `check: sentry` poll backstop. When set, the cron
    * loop polls Sentry's Issues API for each `check: sentry` site that has a
    * `sentry:` block (org/project/query) and grades the monitor from its outage

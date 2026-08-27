@@ -1,14 +1,15 @@
 # Architecture
 
-> Agent-first bird's-eye view of the StatusBeam codebase. Describes structure and
+> Agent-first bird's-eye view of the StatusKita codebase. Describes structure and
 > intent, not implementation detail. For decision rationale see `docs/adr/`.
 
 ## System Overview
 
-**Purpose**: StatusBeam is an open-source, CDN-native status page generator — a
-modern successor to [upptime](https://github.com/upptime/upptime). A cron Worker
-probes your services, records uptime as time-series data, and an Astro site
-renders a fast status page entirely at the edge.
+**Purpose**: StatusKita is an open-source, CDN-native status page generator — a
+modern successor to [upptime](https://github.com/upptime/upptime), derived from
+[StatusBeam](https://github.com/pleaseai/statusbeam). A cron Worker probes your
+services, records uptime as time-series data, and an Astro site renders a fast
+status page entirely at the edge.
 
 **Primary users**: operators/maintainers self-hosting a public status page on
 Cloudflare; the status page's own visitors (read-only); AI coding agents working
@@ -21,7 +22,7 @@ in this repo.
    each service.
 2. Check results are written to **D1** (durable history) and aggregated into a
    current-status snapshot in **KV**. On a status change, the Worker fans out
-   notifications (Slack/webhooks) and purges the edge cache by tag.
+    notifications (Slack/Telegram/webhooks) and purges the edge cache by tag.
 3. The **Astro** site (`apps/web`) renders the KV snapshot at the edge — 90-day
    uptime bars, response-time charts, incident timeline — plus a public JSON +
    badge API. The visitor's browser never calls a third-party API.
@@ -73,7 +74,7 @@ For understanding **the status page** (how data is rendered):
 
 - `apps/web/astro.config.ts` — `output: 'server'`, Cloudflare adapter, React
   integration, i18n locales sourced from `@statusbeam/core`.
-- `apps/web/src/pages/{en,ja,ko,zh}/index.astro` — the localized pages; each
+- `apps/web/src/pages/{en,ja,ko,zh,id}/index.astro` — the localized pages; each
   calls `loadStatusPage(Astro)` and renders `components/StatusPage.astro`.
 - `apps/web/src/lib/page.ts` / `apps/web/src/lib/data.ts` — the read path:
   parallel KV/D1 reads plus `Cache-Control` / `Cache-Tag` header emission.
@@ -123,8 +124,10 @@ Root config: `package.json` (Bun `1.3.14` workspaces `apps/*`, `packages/*`),
 2. `buildStatusChangePayload()` (`packages/core/src/notify.ts`) builds a
    channel-agnostic payload.
 3. `ctx.waitUntil(dispatchNotifications(...))` (`apps/worker/src/notify.ts`) —
-   Slack (`toSlackMessage`) + generic webhooks via `Promise.allSettled`; failures
-   are logged, never thrown.
+   Slack (`toSlackMessage`) + Telegram (`toTelegramMessage`, token from the
+   `TELEGRAM_BOT_TOKEN` secret) + generic webhooks via `Promise.allSettled`;
+   failures are logged, never thrown. Telegram URLs keep the token out of logs
+   via origin-only redaction.
 4. `ctx.waitUntil(purgeStatusCache(...))` (`apps/worker/src/cache.ts`) — POSTs
    Cloudflare `purge_cache` with `cacheTags(slugs)`. Web emits the matching
    `Cache-Tag` header (`src/lib/page.ts`, `src/lib/api.ts`), so purge invalidates
@@ -158,8 +161,8 @@ compiled into the bundle — the Worker reads config from KV at runtime and the
 page falls back to bundled sample data until KV is populated. This is what makes
 package-based distribution possible (ADR-0002). Do NOT bake config into the build.
 
-**Each locale is a distinct URL** (`/en/`, `/ja/`, `/ko/`, `/zh/`) so the edge
-cache never fragments on `Accept-Language`. Bare `/` negotiation
+**Each locale is a distinct URL** (`/en/`, `/ja/`, `/ko/`, `/zh/`, `/id/`) so the
+edge cache never fragments on `Accept-Language`. Bare `/` negotiation
 (`apps/web/src/middleware.ts`) redirects with `private, no-store`.
 
 **Worker writes, Web reads the same D1/KV.** The two Workers share identical D1
@@ -174,11 +177,12 @@ preserves the real HTTP code (`packages/core/src/check.ts`). External payloads
 (Statuspage) are validated at the boundary with `zod.safeParse`. Web read paths
 degrade rather than fail the render: locale/incident/badge helpers fall back on
 malformed KV. `notify` and `cache` failures are logged, never thrown, so one bad
-target cannot wedge a cron run.
+target (or a missing optional channel secret) cannot wedge a cron run.
 
 **Logging**: `console.warn` / `console.error` only, always with context. URLs are
-redacted to origin before logging (`apps/worker/src/notify.ts`). Steady-state
-misconfiguration warns once per isolate (`apps/web/src/lib/data.ts`).
+redacted to origin before logging (`apps/worker/src/notify.ts`) — this includes
+the Telegram bot token, which lives only in the Bot API URL and is never logged.
+Steady-state misconfiguration warns once per isolate (`apps/web/src/lib/data.ts`).
 
 **Testing**: `bun test`. Unit tests live co-located in `packages/core/src/*.test.ts`
 (8 files, ~110 cases). Coverage config in `bunfig.toml` (`text` + `lcov` →
@@ -188,8 +192,9 @@ misconfiguration warns once per isolate (`apps/web/src/lib/data.ts`).
 
 **Configuration / env**: `status.config.yml` (committed demo) +
 `status.config.example.yml` (documented fields), parsed only through core. Worker
-env typed in `apps/worker/src/env.ts`; secrets `CF_API_TOKEN` / `CF_ZONE_ID` set
-via `wrangler secret`. `scripts/apply-config.ts` idempotently splices account IDs,
+env typed in `apps/worker/src/env.ts`; secrets `CF_API_TOKEN` / `CF_ZONE_ID` /
+`WEBHOOK_SECRET` / `SENTRY_AUTH_TOKEN` / `TELEGRAM_BOT_TOKEN` set via
+`wrangler secret`. `scripts/apply-config.ts` idempotently splices account IDs,
 cron, and custom domain into both `wrangler.jsonc` files during `bun run setup`.
 
 **Supply chain / CI**: SHA-pinned GitHub Actions, zizmor workflow lint, codecov

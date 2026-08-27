@@ -23,6 +23,7 @@ describe('resolveLocale', () => {
     expect(resolveLocale('zh-CN')).toBe('zh')
     expect(resolveLocale('ja_JP')).toBe('ja')
     expect(resolveLocale('ko-KR')).toBe('ko')
+    expect(resolveLocale('id-ID')).toBe('id')
     expect(resolveLocale('en-US')).toBe('en')
   })
 
@@ -37,6 +38,7 @@ describe('resolveLocale', () => {
 describe('matchLocale', () => {
   it('returns the supported locale for a matching tag, else null', () => {
     expect(matchLocale('ja')).toBe('ja')
+    expect(matchLocale('id')).toBe('id')
     expect(matchLocale('zh-CN')).toBe('zh')
     expect(matchLocale('fr')).toBeNull()
     expect(matchLocale('')).toBeNull()
@@ -73,6 +75,7 @@ describe('getDict', () => {
     expect(getDict('ko').banner.operational).toBe('모든 시스템 정상')
     expect(getDict('ja').banner.operational).toBe('すべてのシステムが正常')
     expect(getDict('zh').banner.operational).toBe('所有系统正常')
+    expect(getDict('id').banner.operational).toBe('Semua Sistem Beroperasi Normal')
   })
 })
 
@@ -81,6 +84,7 @@ describe('formatDay', () => {
     expect(formatDay('2026-07-05', 'en')).toBe('Jul 5, 2026')
     expect(formatDay('2026-07-05', 'ko')).toContain('2026')
     expect(formatDay('2026-07-05', 'ja')).toContain('年')
+    expect(formatDay('2026-07-05', 'id')).toContain('Jul')
   })
 
   it('returns the raw input for a malformed date', () => {

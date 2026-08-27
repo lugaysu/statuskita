@@ -188,6 +188,11 @@ describe('theme.locale', () => {
     expect(config.theme.locale).toBe('ko')
   })
 
+  it('accepts the Indonesian locale', () => {
+    const config = parseConfig(`${baseYaml}\ntheme:\n  locale: id\n`)
+    expect(config.theme.locale).toBe('id')
+  })
+
   it('rejects an unsupported locale', () => {
     expect(() => parseConfig(`${baseYaml}\ntheme:\n  locale: fr\n`)).toThrow()
   })
@@ -201,6 +206,24 @@ describe('notificationsSchema', () => {
     })
     expect(parsed.slack?.webhookUrl).toBe('https://hooks.slack.com/services/T/B/X')
     expect(parsed.webhooks).toHaveLength(1)
+  })
+
+  it('accepts a telegram target with a numeric chat id (the token stays a secret)', () => {
+    const parsed = notificationsSchema.parse({
+      telegram: { chatId: -1001234567890 },
+    })
+    expect(parsed.telegram?.chatId).toBe(-1001234567890)
+  })
+
+  it('accepts a telegram target with a string chat id (channel handle)', () => {
+    const parsed = notificationsSchema.parse({
+      telegram: { chatId: '@mychannel' },
+    })
+    expect(parsed.telegram?.chatId).toBe('@mychannel')
+  })
+
+  it('requires a chat id for a telegram target', () => {
+    expect(() => notificationsSchema.parse({ telegram: {} })).toThrow()
   })
 
   it('accepts an empty object (all targets optional) and defaults delivery to inline', () => {

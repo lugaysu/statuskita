@@ -4,7 +4,7 @@ description: Build, run, and drive the statusbeam CLI (packages/cli). Use when a
 ---
 
 `packages/cli` is `@statusbeam/cli` — the `statusbeam` command-line tool that
-provisions, configures, and deploys a StatusBeam status page to Cloudflare. It's
+provisions, configures, and deploys a StatusKita status page to Cloudflare. It's
 a small dependency-free-arg-parsing Node CLI (`setup` / `deploy` / `update`,
 plus `--help`/`--version`). Drive it with the committed smoke script:
 `.claude/skills/run-statusbeam-cli/smoke.sh` — it builds the binary, runs it
@@ -83,7 +83,7 @@ NODE_ENV=test bun -e "import('./src/commands/update.ts').then(m => console.log(m
 
 ## Run (human path)
 
-`bun run build && ./dist/cli.js setup` in a *scaffolded* StatusBeam project
+`bun run build && ./dist/cli.js setup` in a *scaffolded* StatusKita project
 (one made by `bunx create-statusbeam`, holding `status.config.yml` +
 `wrangler.worker.jsonc` + `wrangler.web.jsonc`). It is interactive and, past the
 prerequisite/auth gates, makes real Cloudflare API calls — not runnable to

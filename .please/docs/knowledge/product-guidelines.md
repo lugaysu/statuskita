@@ -1,4 +1,4 @@
-# Product Guidelines — StatusBeam
+# Product Guidelines — StatusKita
 
 ## Audience & voice
 
@@ -6,7 +6,8 @@
 - **Voice**: direct, technical, honest about trade-offs. The README's tone is the
   reference — state what a feature does and, where relevant, what it *fixes*
   versus upptime. No marketing fluff.
-- **Language**: this is a public open-source repo under the `pleaseai` org — all
+- **Language**: this is a public open-source repo (an independent derivative of
+  [StatusBeam](https://github.com/pleaseai/statusbeam)) — all
   docs, code comments, identifiers, and commit messages are **English only**.
 
 ## Documentation

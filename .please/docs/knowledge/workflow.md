@@ -1,4 +1,4 @@
-# Project Workflow — StatusBeam
+# Project Workflow — StatusKita
 
 > Defines the development workflow conventions for the project.
 > Referenced by `/please:implement`.

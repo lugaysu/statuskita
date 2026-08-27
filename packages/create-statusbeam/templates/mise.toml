@@ -1,4 +1,4 @@
-# mise.toml — pinned toolchain for your StatusBeam project.
+# mise.toml — pinned toolchain for your StatusKita project.
 # Usage: `mise trust && mise install`
 [tools]
 node = "24"

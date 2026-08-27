@@ -218,9 +218,19 @@ export type NotificationDelivery = z.infer<typeof notificationDeliverySchema>
  * configs without a `notifications` block keep parsing unchanged; `delivery`
  * defaults to `inline` so adding it never changes existing behavior.
  */
+/**
+ * Optional outbound notification targets. Every field is optional so existing
+ * configs without a `notifications` block keep parsing unchanged; `delivery`
+ * defaults to `inline` so adding it never changes existing behavior.
+ *
+ * `telegram.chatId` is the only Telegram setting held here — the bot token is a
+ * Cloudflare secret (`TELEGRAM_BOT_TOKEN`) supplied to the Worker at runtime,
+ * never committed. See apps/worker/src/env.ts and notify.ts.
+ */
 export const notificationsSchema = z.object({
   delivery: notificationDeliverySchema.default('inline'),
   slack: z.object({ webhookUrl: z.string().url() }).optional(),
+  telegram: z.object({ chatId: z.union([z.string().min(1), z.number().int()]) }).optional(),
   webhooks: z.array(z.object({ url: z.string().url() })).optional(),
 })
 export type Notifications = z.infer<typeof notificationsSchema>

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 /**
- * Resolve the two sides of a StatusBeam deploy:
+ * Resolve the two sides of a StatusKita deploy:
  *  - the *user's* project files (status.config.yml + the two wrangler configs), and
  *  - the *installed* @statusbeam/worker and @statusbeam/web packages, plus the
  *    wrangler/astro bins they carry, resolved from each package's own context so
@@ -17,7 +17,7 @@ export interface UserProject {
   webWrangler: string
 }
 
-/** The user-owned files a thin StatusBeam repo holds (scaffolded by create-statusbeam). */
+/** The user-owned files a thin StatusKita repo holds (scaffolded by create-statusbeam). */
 export function userProject(cwd: string): UserProject {
   const root = resolve(cwd)
   return {

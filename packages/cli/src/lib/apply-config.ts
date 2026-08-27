@@ -28,7 +28,7 @@ const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  */
 export function injectIds(s: string, d1?: string, kv?: string): string {
   if (d1) {
-    // Scope to the StatusBeam `DB` binding (its `"binding"` precedes its
+    // Scope to the StatusKita `DB` binding (its `"binding"` precedes its
     // `"database_id"` in the template) so a d1 database listed before it in a
     // customized config can't be the one whose id gets overwritten.
     s = s.replace(/("binding"\s*:\s*"DB"[\s\S]*?"database_id"\s*:\s*")[^"]*(")/, (_m, p, q) => `${p}${d1}${q}`)

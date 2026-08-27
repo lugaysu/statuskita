@@ -47,9 +47,15 @@
   ]
 
   // Notifications (src/notify.ts): dispatched inline via `ctx.waitUntil(fetch)`
-  // on a status change — Slack + generic webhook targets come from the
+  // on a status change — Slack + Telegram + generic webhook targets come from the
   // `notifications` block in status.config.yml, so no binding is required for
   // the default (free-plan) inline path.
+  //
+  // Telegram needs a bot token — a secret, never in config:
+  //   wrangler secret put TELEGRAM_BOT_TOKEN
+  // It is embedded in the Bot API URL at dispatch and redacted from every log.
+  // When it is missing but a telegram target is configured, only that target is
+  // skipped (logged), never the whole run.
   //
   // Reliable delivery (opt-in): set `notifications.delivery: queue` in
   // status.config.yml and uncomment the block below. Cloudflare Queues is on the

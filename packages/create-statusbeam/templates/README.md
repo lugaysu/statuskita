@@ -1,6 +1,6 @@
-# StatusBeam status page
+# StatusKita status page
 
-Your own [StatusBeam](https://github.com/pleaseai/statusbeam) status page, deployed
+Your own [StatusKita](https://github.com/pleaseai/statusbeam) status page, deployed
 to Cloudflare. This repo holds only *your* config — the app itself is a versioned
 dependency (`@statusbeam/cli` + the worker/web packages), so upgrading is a
 `statusbeam update`, not a fork-merge.
@@ -29,7 +29,7 @@ Commit the updated `wrangler.*.jsonc` (with your real resource ids) afterwards.
 - **Change services:** edit `status.config.yml`, then `bunx statusbeam deploy`.
 - **Deploy from CI:** push to `main` (set `CLOUDFLARE_API_TOKEN` +
   `CLOUDFLARE_ACCOUNT_ID` as repo secrets first).
-- **Upgrade StatusBeam:** `bunx statusbeam update`, then `bunx statusbeam deploy`.
+- **Upgrade StatusKita:** `bunx statusbeam update`, then `bunx statusbeam deploy`.
 - **Reliable notifications (optional):** alerts POST inline by default (no
   retries). For automatic retries + dead-lettering, set
   `notifications.delivery: queue` in `status.config.yml` and uncomment the

@@ -1,10 +1,13 @@
-# StatusBeam — Project Instructions
+# StatusKita — Project Instructions
 
-Open-source, CDN-native status page generator (a modern successor to upptime),
-running on Cloudflare's edge platform. Bun + Turborepo monorepo.
+StatusKita is an independent, community-driven derivative of
+[StatusBeam](https://github.com/pleaseai/statusbeam) (see the LICENSE and README
+for attribution). Open-source, CDN-native status page generator (a modern
+successor to upptime), running on Cloudflare's edge platform. Bun + Turborepo
+monorepo.
 
-Public OSS repo under the `pleaseai` org: all docs, code, comments, and commit
-messages are **English only**.
+All docs, code, comments, and commit messages are **English only** (Indonesian
+text appears solely in user-facing locale strings under `packages/core/src/i18n.ts`).
 
 <!-- please:knowledge v1 -->
 ## Project Knowledge
@@ -25,3 +28,11 @@ For full file listing with workspace artifacts, use `Skill("please:project-knowl
 ### Decision Records
 - `docs/adr/` — Architecture Decision Records (ADR)
 <!-- /please:knowledge -->
+
+## Notifications
+
+Status-change notifications fan out to Slack, Telegram, and generic webhooks
+(`packages/core/src/notify.ts` for formatters, `apps/worker/src/notify.ts` for
+dispatch). The Telegram **bot token is always a Cloudflare secret**
+(`TELEGRAM_BOT_TOKEN`), never committed or placed in YAML — only `chatId` lives in
+`status.config.yml`.

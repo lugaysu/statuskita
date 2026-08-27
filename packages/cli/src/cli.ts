@@ -1,5 +1,5 @@
 /**
- * `statusbeam` — the StatusBeam CLI entrypoint. Parses argv, then dispatches to
+ * `statusbeam` — the StatusKita CLI entrypoint. Parses argv, then dispatches to
  * setup / deploy / update. Deliberately dependency-free arg parsing: the surface
  * is tiny and a parser lib would be more weight than the whole thing.
  */
@@ -10,7 +10,7 @@ import { setup } from './commands/setup'
 import { update } from './commands/update'
 import { die } from './lib/log'
 
-const HELP = `statusbeam — deploy and manage a StatusBeam status page on Cloudflare.
+const HELP = `statusbeam — deploy and manage a StatusKita status page on Cloudflare.
 
 Usage:
   statusbeam setup [options]     Provision D1 + KV, configure, and deploy.

@@ -16,13 +16,15 @@ import { config } from 'virtual:nimbus/config'
           class="text-foreground leading-tight"
           style="font-size: var(--nb-h1-size); font-weight: var(--nb-h1-weight); letter-spacing: var(--nb-h1-tracking);"
         >
-          StatusBeam
+          StatusKita
         </h1>
         <p class="mt-3 max-w-3xl text-[1.0625rem] leading-relaxed text-muted-foreground">
-          An open-source, CDN-native status page generator — a modern take on upptime. Renders every byte at the edge from its own store, so your page never hits third-party rate limits.
+          An open-source, CDN-native status page generator — a modern take on upptime, derived from
+          <a href="https://github.com/pleaseai/statusbeam" class="underline underline-offset-4">StatusBeam</a>.
+          Renders every byte at the edge from its own store, so your page never hits third-party rate limits.
         </p>
 
-        <nav aria-label="StatusBeam resources" class="mt-8 flex flex-wrap gap-3">
+        <nav aria-label="StatusKita resources" class="mt-8 flex flex-wrap gap-3">
           <a
             href="/getting-started/introduction/"
             class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground no-underline transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -45,19 +47,19 @@ import { config } from 'virtual:nimbus/config'
       </section>
 
       <section aria-labelledby="why-statusbeam" class="mt-20">
-        <h2 id="why-statusbeam" class="text-2xl font-semibold tracking-tight text-foreground">Why StatusBeam</h2>
+        <h2 id="why-statusbeam" class="text-2xl font-semibold tracking-tight text-foreground">Why StatusKita</h2>
         <CardGrid class="mt-6">
           <Card title="No client-side rate limits" icon="ph:rocket-launch">
-            Upptime calls the GitHub API from the visitor's browser (60 req/h/IP), so popular pages break with a "rate limit exceeded" screen. StatusBeam renders every byte at the edge from its own store — the browser never talks to a third-party API.
+            Upptime calls the GitHub API from the visitor's browser (60 req/h/IP), so popular pages break with a "rate limit exceeded" screen. StatusKita renders every byte at the edge from its own store — the browser never talks to a third-party API.
           </Card>
           <Card title="Reliable scheduling" icon="ph:check-circle">
-            Upptime rides best-effort GitHub Actions cron (an "every 5 min" job can slip to 15–60 min). StatusBeam uses Cloudflare Cron Triggers, which fire on time.
+            Upptime rides best-effort GitHub Actions cron (an "every 5 min" job can slip to 15–60 min). StatusKita uses Cloudflare Cron Triggers, which fire on time.
           </Card>
           <Card title="A store that scales" icon="ph:gear">
-            Instead of walking git commit history through a rate-limited API, StatusBeam uses Cloudflare D1 + KV, purpose-built for time-series reads.
+            Instead of walking git commit history through a rate-limited API, StatusKita uses Cloudflare D1 + KV, purpose-built for time-series reads.
           </Card>
           <Card title="A current frontend" icon="ph:star">
-            Upptime's page is built on end-of-life Svelte 3 + Sapper. StatusBeam is Astro + shadcn/ui, shipping ~0 JS for everything but the interactive charts.
+            Upptime's page is built on end-of-life Svelte 3 + Sapper. StatusKita is Astro + shadcn/ui, shipping ~0 JS for everything but the interactive charts.
           </Card>
         </CardGrid>
       </section>

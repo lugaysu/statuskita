@@ -1,4 +1,4 @@
-# Your StatusBeam config — this single file is the service list you edit. The
+# Your StatusKita config — this single file is the service list you edit. The
 # statusbeam CLI uploads it to the Worker's KV `config` key at deploy time.
 
 name: Acme Status

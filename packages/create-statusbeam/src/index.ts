@@ -1,5 +1,5 @@
 /**
- * `create-statusbeam` — scaffold a thin StatusBeam project: the user-owned config
+ * `create-statusbeam` — scaffold a thin StatusKita project: the user-owned config
  * (status.config.yml + the two wrangler configs + CI) that deploys the published
  * @statusbeam packages via the statusbeam CLI. `bunx create-statusbeam [dir]`.
  *
@@ -136,7 +136,7 @@ async function main(): Promise<void> {
   spawnSync('git', ['init', '--quiet'], { cwd: target, stdio: 'ignore', shell: process.platform === 'win32' })
 
   const rel = args.dir === '.' ? '.' : args.dir
-  process.stdout.write(`\n✓ Scaffolded a StatusBeam project in ${target}\n\nNext:\n`)
+  process.stdout.write(`\n✓ Scaffolded a StatusKita project in ${target}\n\nNext:\n`)
   if (rel !== '.') {
     process.stdout.write(`  cd ${rel}\n`)
   }

@@ -1,12 +1,13 @@
 import type { Notifications, StatusChangePayload } from '@statusbeam/core'
 import type { Env } from './env'
-import { toSlackMessage } from '@statusbeam/core'
+import { toSlackMessage, toTelegramMessage } from '@statusbeam/core'
 
 /**
  * A single ready-to-POST notification: one target URL and its JSON body. Slack
- * carries its Block Kit message; generic webhooks carry the channel-agnostic
- * payload. This is the wire shape for both delivery modes — inline dispatch
- * POSTs it directly; queue dispatch enqueues it as one message.
+ * carries its Block Kit message; Telegram carries its Bot API `sendMessage`
+ * body (the token is embedded in the URL target) and generic webhooks carry the
+ * channel-agnostic payload. This is the wire shape for both delivery modes —
+ * inline dispatch POSTs it directly; queue dispatch enqueues it as one message.
  */
 export interface NotificationMessage {
   url: string
@@ -20,10 +21,17 @@ const QUEUE_BATCH_LIMIT = 100
  * Fan a status-change payload out into one {@link NotificationMessage} per
  * configured target. Shared by both delivery modes so they dispatch to exactly
  * the same set of targets with the same bodies.
+ *
+ * `telegramToken` is the operator-supplied bot token (a Cloudflare secret,
+ * never in config). It is embedded in the Telegram Bot API URL; the per-target
+ * URL is the only place the token lives and `redactUrl` keeps it out of logs.
+ * When Telegram is configured but the token is absent, the target is skipped
+ * (logged) so a missing secret degrades one channel, not the whole run.
  */
 export function buildNotificationMessages(
   notifications: Notifications | undefined,
   payload: StatusChangePayload,
+  telegramToken?: string,
 ): NotificationMessage[] {
   if (!notifications) {
     return []
@@ -31,6 +39,19 @@ export function buildNotificationMessages(
   const messages: NotificationMessage[] = []
   if (notifications.slack) {
     messages.push({ url: notifications.slack.webhookUrl, body: toSlackMessage(payload) })
+  }
+  if (notifications.telegram) {
+    if (telegramToken) {
+      messages.push({
+        url: `https://api.telegram.org/bot${telegramToken}/sendMessage`,
+        body: toTelegramMessage(payload, notifications.telegram.chatId),
+      })
+    }
+    else {
+      console.warn(
+        'notify: telegram is configured in status.config.yml but the TELEGRAM_BOT_TOKEN secret is missing; skipping the Telegram target',
+      )
+    }
   }
   for (const hook of notifications.webhooks ?? []) {
     messages.push({ url: hook.url, body: payload })
@@ -62,7 +83,7 @@ export async function notify(
 ): Promise<void> {
   if (notifications?.delivery === 'queue') {
     if (env.NOTIFY_QUEUE) {
-      const messages = buildNotificationMessages(notifications, payload)
+      const messages = buildNotificationMessages(notifications, payload, env.TELEGRAM_BOT_TOKEN)
       if (messages.length === 0) {
         return
       }
@@ -95,7 +116,7 @@ export async function notify(
       )
     }
   }
-  await dispatchNotifications(notifications, payload, fetchImpl)
+  await dispatchNotifications(notifications, payload, fetchImpl, env.TELEGRAM_BOT_TOKEN)
 }
 
 /**
@@ -110,8 +131,9 @@ export async function dispatchNotifications(
   notifications: Notifications | undefined,
   payload: StatusChangePayload,
   fetchImpl: typeof fetch = fetch,
+  telegramToken?: string,
 ): Promise<void> {
-  await postAll(fetchImpl, buildNotificationMessages(notifications, payload))
+  await postAll(fetchImpl, buildNotificationMessages(notifications, payload, telegramToken))
 }
 
 /** POST every message inline, swallowing individual failures. */

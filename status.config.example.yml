@@ -35,7 +35,7 @@ sites:
     url: https://status.openai.com
     check: incidentio
 
-  # Mirror a Sentry Uptime monitor. Sentry runs the checks; StatusBeam ingests
+  # Mirror a Sentry Uptime monitor. Sentry runs the checks; StatusKita ingests
   # the verdict in real time from a Sentry issue webhook
   # (POST /webhooks/sentry/<slug>, set WEBHOOK_SECRET on the Worker). Binary
   # up/down. Webhook-only by default — the cron loop skips it. See
@@ -74,8 +74,9 @@ sites:
       degradedUptime: 99 # published uptime % below this ⇒ degraded
       downUptime: 50 # published uptime % below this ⇒ down
 
-# All optional. Keep the real Slack URL in the private config you upload to KV,
-# not in this committed example (the webhook URL is a secret).
+# All optional. Keep real webhook URLs and chat ids in the private config you
+# upload to KV (webhook URLs are secrets). The Telegram *bot token* is always a
+# Worker secret (`TELEGRAM_BOT_TOKEN`) — never put it in this file.
 notifications:
   # inline (default): POST each target directly — best-effort, no retries.
   # queue: enqueue to a Cloudflare Queue with automatic retries + dead-lettering
@@ -84,6 +85,11 @@ notifications:
   delivery: inline
   slack:
     webhookUrl: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+  telegram:
+    # Numeric chat id (group/supergroup) or a string handle (@channel or
+    # username for bots in private chats). The bot token is a Cloudflare secret:
+    #   wrangler secret put TELEGRAM_BOT_TOKEN
+    chatId: -1001234567890
   webhooks:
     - url: https://example.com/status-hook
 
@@ -91,6 +97,6 @@ theme:
   logoUrl: /logo.svg
   darkMode: true
   # Fallback UI language, used only when a visitor's browser language isn't one
-  # of the supported locales (en | zh | ja | ko). Visitors are otherwise served
-  # /en/ /ja/ /ko/ /zh/ based on Accept-Language. Defaults to en.
+  # of the supported locales (en | zh | ja | ko | id). Visitors are otherwise
+  # served /en/ /ja/ /ko/ /zh/ /id/ based on Accept-Language. Defaults to en.
   locale: en

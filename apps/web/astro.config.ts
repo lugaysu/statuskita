@@ -8,7 +8,7 @@ import { defineConfig } from 'astro/config'
 
 // The @astrojs/cloudflare adapter fuses the wrangler config (D1/KV ids, routes,
 // cache) into the generated deploy config at *build* time, so a prebuilt bundle
-// carries whatever config was present when it was built. That's why StatusBeam
+// carries whatever config was present when it was built. That's why StatusKita
 // ships this app as source and builds per-user (ADR-0002): the `statusbeam` CLI
 // sets STATUSBEAM_WRANGLER_CONFIG to the user's own wrangler config and runs the
 // build, so their real ids/domain — not the repo's demo placeholders — land in

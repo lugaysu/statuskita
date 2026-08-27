@@ -2,7 +2,7 @@
   "name": "@statusbeam/core",
   "type": "module",
   "version": "0.2.0",
-  "description": "Shared library for StatusBeam — config schema, check logic, uptime math, badges, and i18n.",
+  "description": "Shared library for StatusKita — config schema, check logic, uptime math, badges, and i18n.",
   "license": "MIT",
   "homepage": "https://github.com/pleaseai/statusbeam/tree/main/packages/core#readme",
   "repository": {

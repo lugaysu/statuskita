@@ -11,11 +11,11 @@ audience, gate it at the **edge** with [Cloudflare Access](https://developers.cl
 
 Cloudflare Access is an identity gate you configure in the Zero Trust dashboard —
 an Access **application** bound to a hostname (or path) plus a **policy** that
-decides who may enter. It runs **ahead of** the StatusBeam Worker and the edge
+decides who may enter. It runs **ahead of** the StatusKita Worker and the edge
 cache in Cloudflare's request pipeline, which gives it three properties that make
 it the right layer for this:
 
-- **No app code.** StatusBeam ships no login, session, or authorization logic.
+- **No app code.** StatusKita ships no login, session, or authorization logic.
   Identity, MFA, and session lifetime are handled by Access, wired to your own
   identity provider (Google, Okta, GitHub, Microsoft Entra, or a one-time PIN).
 - **Cache-safe.** Because Access authenticates *before* the request reaches the

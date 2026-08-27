@@ -3,10 +3,10 @@ import type { Severity } from './types'
 
 /**
  * Supported UI locales. English is the source language; `zh`/`ja`/`ko` are the
- * CJK translations. Regional variants (e.g. `zh-CN`, `en-US`) collapse to their
- * base language via {@link resolveLocale}.
+ * CJK translations; `id` is Indonesian. Regional variants (e.g. `zh-CN`, `en-US`)
+ * collapse to their base language via {@link resolveLocale}.
  */
-export const LOCALES = ['en', 'zh', 'ja', 'ko'] as const
+export const LOCALES = ['en', 'zh', 'ja', 'ko', 'id'] as const
 export type Locale = (typeof LOCALES)[number]
 
 /** Fallback locale when none is configured or a value can't be resolved. */
@@ -280,7 +280,59 @@ const ko: Dict = {
     `오늘 ${day} · 7일 ${week} · 30일 ${month} · 90일 ${quarter}`,
 }
 
-const DICTS: Record<Locale, Dict> = { en, zh, ja, ko }
+const id: Dict = {
+  page: { title: 'Status' },
+  a11y: { languageNav: 'Bahasa', themeToggle: 'Tema' },
+  theme: { light: 'Terang', dark: 'Gelap', system: 'Sistem' },
+  banner: {
+    operational: 'Semua Sistem Beroperasi Normal',
+    degraded: 'Performa Menurun',
+    partial_outage: 'Gangguan Sebagian',
+    major_outage: 'Gangguan Besar',
+    maintenance: 'Dalam Pemeliharaan',
+  },
+  severity: {
+    operational: 'Beroperasi',
+    degraded: 'Menurun',
+    partial_outage: 'Gangguan Sebagian',
+    major_outage: 'Gangguan Besar',
+    maintenance: 'Pemeliharaan',
+  },
+  state: {
+    investigating: 'Sedang Diselidiki',
+    identified: 'Penyebab Ditemukan',
+    monitoring: 'Dipantau',
+    resolved: 'Terselesaikan',
+  },
+  day: {
+    up: 'Beroperasi',
+    degraded: 'Menurun',
+    down: 'Gangguan',
+    nodata: 'Tidak ada data',
+  },
+  incidents: {
+    heading: 'Insiden',
+    recentlyResolved: 'Baru saja diselesaikan',
+    none: 'Tidak ada insiden yang dilaporkan dalam 90 hari terakhir.',
+  },
+  status: { responseTime: 'Waktu respons' },
+  chart: {
+    avg: 'rata-rata',
+    p95: 'p95',
+    responseTime: 'Waktu respons',
+    noData: 'Belum ada data waktu respons.',
+  },
+  unit: { ms: 'ms' },
+  timeline: {
+    today: 'Hari ini',
+    windowStart: days => `${days} hari lalu`,
+    ariaUptime: uptime => `Riwayat uptime 90 hari — uptime ${uptime}`,
+  },
+  breakdown: ({ day, week, month, quarter }) =>
+    `Hari ini ${day} · 7h ${week} · 30h ${month} · 90h ${quarter}`,
+}
+
+const DICTS: Record<Locale, Dict> = { en, zh, ja, ko, id }
 
 /** The translation dictionary for `locale`. */
 export function getDict(locale: Locale): Dict {

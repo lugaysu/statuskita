@@ -26,6 +26,7 @@ const LOCALE_NAMES: Record<Locale, string> = {
   ja: '日本語',
   ko: '한국어',
   zh: '中文',
+  id: 'Bahasa Indonesia',
 }
 
 // Absolute URLs for the per-locale <link rel="alternate"> tags. `Astro.site`
@@ -100,7 +101,8 @@ const localeHref = (l: string): string => new URL(`/${l}/`, Astro.site ?? Astro.
           ))}
         </nav>
         <p>
-          Powered by <a class="underline underline-offset-4" href="https://github.com/pleaseai/statusbeam">statusbeam</a>
+          Powered by <a class="underline underline-offset-4" href="https://github.com/pleaseai/statusbeam">StatusKita</a>
+          · derived from <a class="underline underline-offset-4" href="https://github.com/pleaseai/statusbeam">statusbeam</a>
         </p>
       </footer>
     </main>

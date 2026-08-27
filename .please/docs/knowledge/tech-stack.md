@@ -1,4 +1,4 @@
-# Tech Stack — StatusBeam
+# Tech Stack — StatusKita
 
 ## Overview
 
@@ -62,7 +62,7 @@ TypeScript throughout. Three workspaces under `apps/*` and `packages/*`.
 - **CI**: GitHub Actions (`.github/workflows/ci.yml`).
 - **Coverage**: Codecov (`codecov.yml`).
 - **Static analysis**: SonarCloud (`sonar-project.properties`,
-  project `pleaseai_statusbeam`).
+  project id inherited from the upstream `pleaseai/statusbeam`).
 - **Releases**: release-please (`release-please-config.json`,
   `.release-please-manifest.json`) — Conventional-Commits-driven versioning.
 - **External AI review**: Greptile, cubic (per README badges).

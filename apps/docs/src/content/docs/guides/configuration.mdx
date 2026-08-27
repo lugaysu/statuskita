@@ -3,7 +3,7 @@ title: Configuration
 description: The single status.config.yml file — services, check types, notifications, and theme.
 ---
 
-StatusBeam is configured by a **single YAML file**, `status.config.yml`. At
+StatusKita is configured by a **single YAML file**, `status.config.yml`. At
 deploy time you upload it to the Worker's KV `config` key; that is the only thing
 you configure.
 
@@ -28,7 +28,7 @@ sites:
     check: http
 
   # Read status straight from an Atlassian Statuspage. `url` is the page's base
-  # URL; StatusBeam appends /api/v2/summary.json automatically.
+  # URL; StatusKita appends /api/v2/summary.json automatically.
   - name: Claude
     url: https://status.claude.com
     check: statuspage

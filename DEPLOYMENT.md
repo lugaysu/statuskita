@@ -1,6 +1,7 @@
 # Deployment
 
-StatusBeam runs entirely on Cloudflare: a **check Worker** probes your services on a
+StatusKita (a derivative of [StatusBeam](https://github.com/pleaseai/statusbeam))
+runs entirely on Cloudflare: a **check Worker** probes your services on a
 cron and writes results to **D1** (history) and **KV** (the current snapshot + config);
 a **status page** (Astro SSR on Workers) renders that snapshot at the edge, fronted by
 Workers Cache.
@@ -152,6 +153,21 @@ bunx wrangler secret put CF_ZONE_ID   --config wrangler.worker.jsonc   # zone se
 
 When unset, a status change still shows up within the 60s edge TTL — the purge is skipped,
 logged, not fatal.
+
+## Optional: Telegram notifications
+
+Add a `telegram:` target to `notifications` in `status.config.yml` (only `chatId` — a
+numeric id or `@handle`). The **bot token is a Cloudflare secret**, never committed and
+never put in YAML:
+
+```bash
+bunx wrangler secret put TELEGRAM_BOT_TOKEN --config wrangler.worker.jsonc
+```
+
+The token is embedded in the Bot API URL at dispatch time and redacted (origin only) from
+every log. If it's missing while a telegram target is configured, only that target is
+skipped (logged) — other notification channels still deliver. See
+[`status.config.example.yml`](./status.config.example.yml).
 
 ## Upgrading
 

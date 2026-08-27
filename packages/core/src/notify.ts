@@ -10,7 +10,7 @@ export interface StatusChange {
 
 /**
  * Channel-agnostic description of one or more status changes. Formatters
- * (Slack, generic webhook, …) turn this into their own wire shape.
+ * (Slack, Telegram, generic webhook, …) turn this into their own wire shape.
  */
 export interface StatusChangePayload {
   /** ISO-8601 timestamp of when the changes were detected. */
@@ -62,5 +62,28 @@ export function toSlackMessage(payload: StatusChangePayload): SlackMessage {
       { type: 'section', text: { type: 'mrkdwn', text: lines.join('\n') } },
       { type: 'context', elements: [{ type: 'mrkdwn', text: payload.timestamp }] },
     ],
+  }
+}
+
+/**
+ * Format a payload as a Telegram Bot API `sendMessage` request body.
+ * Uses plain text (no Markdown/HTML parse_mode) to avoid escaping edge cases
+ * and to keep the message readable in all Telegram clients.
+ * The caller must POST this to:
+ *   https://api.telegram.org/bot<TOKEN>/sendMessage
+ * with the bot token kept in a Cloudflare secret, never logged.
+ */
+export function toTelegramMessage(
+  payload: StatusChangePayload,
+  chatId: string | number,
+): { chat_id: string | number, text: string } {
+  const count = payload.changes.length
+  const headline = `Status changed for ${count} service${count === 1 ? '' : 's'}`
+  const lines = payload.changes.map(
+    c => `${STATUS_EMOJI[c.to]} ${c.slug}: ${c.from} -> ${c.to}`,
+  )
+  return {
+    chat_id: chatId,
+    text: [headline, ...lines, payload.timestamp].join('\n'),
   }
 }

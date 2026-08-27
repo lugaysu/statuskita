@@ -1,35 +1,35 @@
-# StatusBeam
+# StatusKita
 
-[![CI](https://github.com/pleaseai/statusbeam/actions/workflows/ci.yml/badge.svg)](https://github.com/pleaseai/statusbeam/actions/workflows/ci.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=pleaseai_statusbeam&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=pleaseai_statusbeam)
-[![codecov](https://codecov.io/gh/pleaseai/statusbeam/graph/badge.svg)](https://codecov.io/gh/pleaseai/statusbeam)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Reviewed by Greptile](https://img.shields.io/badge/code%20review-Greptile-2ea44f)](https://www.greptile.com/open-source)
-[![Reviewed by cubic](https://img.shields.io/badge/code%20review-cubic-14b8a6)](https://www.cubic.dev)
 [![Live demo](https://img.shields.io/badge/live%20demo-demo.statusbeam.dev-brightgreen)](https://demo.statusbeam.dev)
 [![Deploy on Cloudflare](https://img.shields.io/badge/deploy%20on-Cloudflare-F38020?logo=cloudflare&logoColor=white)](./DEPLOYMENT.md)
 
 > An open-source, CDN-native **status page** generator — a modern take on [upptime](https://github.com/upptime/upptime).
 
-🔗 **Live demo:** [demo.statusbeam.dev](https://demo.statusbeam.dev) — a StatusBeam instance monitoring a few public services, running on Cloudflare.
+**StatusKita** is an independent derivative of [StatusBeam](https://github.com/pleaseai/statusbeam),
+a CDN-native status page generator that runs entirely on Cloudflare. It keeps the same
+three-layer architecture, config-as-YAML DX, and edge-first rendering, while rebranding
+and extending the project with deeper Indonesian (`id`) language support and a first-class
+Telegram notification channel. It is a separate, community-driven fork — not an official
+release of StatusBeam.
 
-StatusBeam monitors your services, records their uptime as durable time-series
+StatusKita monitors your services, records their uptime as durable time-series
 data, and publishes a fast, good-looking status page to the edge. It keeps the parts
 of upptime that people love — config-as-YAML, zero servers to babysit, badges, a
 public JSON API — while fixing upptime's biggest structural weaknesses:
 
 - **No client-side rate limits.** upptime's page calls the GitHub API *from the
   visitor's browser* (unauthenticated, 60 req/h/IP), so popular pages break with a
-  "rate limit exceeded" screen. StatusBeam renders every byte at the edge from
+  "rate limit exceeded" screen. StatusKita renders every byte at the edge from
   its own store — the browser never talks to a third-party API.
 - **Reliable scheduling.** upptime rides GitHub Actions cron, which is best-effort
-  (a "every 5 min" job can slip to 15–60 min). StatusBeam uses **Cloudflare
+  (a "every 5 min" job can slip to 15–60 min). StatusKita uses **Cloudflare
   Cron Triggers**, which fire on time.
 - **A store that scales.** upptime treats git commit history as its database and
-  walks it through a rate-limited API. StatusBeam uses **Cloudflare D1 + KV**,
+  walks it through a rate-limited API. StatusKita uses **Cloudflare D1 + KV**,
   purpose-built for time-series reads.
 - **A current, maintained frontend.** upptime's page is built on **Svelte 3 + Sapper**,
-  both end-of-life. StatusBeam is **Astro + shadcn/ui**.
+  both end-of-life. StatusKita is **Astro + shadcn/ui**.
 
 ---
 
@@ -37,16 +37,15 @@ public JSON API — while fixing upptime's biggest structural weaknesses:
 
 🚧 **Active development.** The core pipeline is live end-to-end — HTTP checks on
 Cloudflare Cron write to D1/KV, the Astro page renders 90-day uptime bars, response-time
-charts, and an incident timeline at the edge, and status changes fan out to Slack/webhooks
-while purging the edge cache. A [live demo](https://demo.statusbeam.dev) runs on
-Cloudflare. TCP/SSL checks, a public API + badges, and more notification channels are
-next — see the [Roadmap](#roadmap).
+charts, and an incident timeline at the edge, and status changes fan out to
+Slack/Telegram/webhooks while purging the edge cache. TCP/SSL checks, a public API +
+badges, and more notification channels are next — see the [Roadmap](#roadmap).
 
 ---
 
 ## How it works
 
-StatusBeam is deliberately split into three independent layers. Each can be
+StatusKita is deliberately split into three independent layers. Each can be
 understood, deployed, and replaced on its own.
 
 ```
@@ -64,7 +63,8 @@ understood, deployed, and replaced on its own.
         │ D1 (time-series,  │  │ 2. NOTIFY LAYER —    │   │
         │     incidents)    │  │    Queue consumer    │   │
         │ KV (current       │  │  • Email, Slack,     │   │
-        │     snapshot)     │  │    webhook, RSS/Atom │   │
+        │     snapshot)     │  │    Telegram, webhook │   │
+        │                   │  │    RSS/Atom          │   │
         └─────────┬─────────┘  └──────────────────────┘   │
                   │ reads at the edge                      │
                   ▼                                        ▼
@@ -98,8 +98,8 @@ services are down. That resilience is the whole point of a status page.
 | **Charts** | shadcn/ui charts (Recharts) | Response-time graphs, themed and dark-mode-ready out of the box. |
 | **Check scheduler** | Cloudflare **Cron Triggers** (Worker) | On-time execution, unlike GitHub Actions cron. |
 | **Data store** | Cloudflare **D1** (SQLite) + **KV** | D1 for time-series & incident history; KV for the current snapshot. |
-| **Edge cache** | Cloudflare **[Workers Cache](https://blog.cloudflare.com/workers-cache/)** | Tiered cache in front of the Astro Worker: `Cache-Control` + `stale-while-revalidate`, request collapsing, and **tag-based purge on status change** — near-instant updates without hammering D1. Today via `Cache-Control` headers; Astro 7's `Astro.cache` / `cacheCloudflare()` is the forward path. |
-| **Notifications** | Cloudflare Workers + Queues | Email / Slack / webhook / RSS on status change, decoupled from the UI. |
+| **Edge cache** | Cloudflare **[Workers Cache](https://blog.cloudflare.com/workers-cache/)** | Tiered cache in front of the Astro Worker: `Cache-Control` + `stale-while-revalidate`, request collapsing, and **tag-based purge on status change** — near-instant updates without hammering D1. |
+| **Notifications** | Cloudflare Workers + Queues | Slack / Telegram / webhook on status change, decoupled from the UI. |
 | **Deploy target** | **Cloudflare** (primary) · Vercel (supported) | Astro adapters target both; Cloudflare is the native, batteries-included path. |
 | **Tooling** | Bun · Wrangler · TypeScript | Bun for install/scripts; Wrangler for Worker + D1 + KV. |
 
@@ -138,7 +138,7 @@ A Bun-workspaces monorepo. The three runtime layers map to three workspaces, wit
 the domain logic shared in `core`:
 
 ```
-statusbeam/
+statuskita/
 ├── apps/
 │   ├── web/       # Astro status page (Cloudflare adapter + Workers Cache)
 │   └── worker/    # Cron Worker: checks + notifications (D1/KV, schema.sql)
@@ -186,15 +186,17 @@ sites:
   - name: OpenAI # incident.io status pages read the same way (Statuspage-compatible)
     url: https://status.openai.com
     check: incidentio
-notifications: # all optional; keep the real Slack URL (a secret) in your KV config
+notifications: # all optional; keep real webhook URLs (secrets) in your KV config
   slack:
     webhookUrl: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+  telegram:
+    chatId: -1001234567890 # bot token is a secret — set TELEGRAM_BOT_TOKEN on the Worker
   webhooks:
     - url: https://example.com/status-hook
 theme:
   logoUrl: /logo.svg
   darkMode: true
-  locale: en # fallback UI language: en | zh | ja | ko (default en)
+  locale: en # fallback UI language: en | zh | ja | ko | id (default en)
 ```
 
 ### Check types
@@ -223,7 +225,7 @@ identically; use whichever names your vendor:
 [`docs/adapters/incidentio.md`](./docs/adapters/incidentio.md).
 
 The **Sentry adapter** presents a [Sentry Uptime](https://docs.sentry.io/product/uptime-monitoring/)
-monitor on your status page. Sentry runs the checks; StatusBeam ingests the
+monitor on your status page. Sentry runs the checks; StatusKita ingests the
 verdict in real time from a Sentry issue webhook (`POST /webhooks/sentry/:slug`),
 with an optional cron poll of Sentry's Issues API as the backstop. Binary
 (`up`/`down`). Setup, status mapping, and the webhook-only vs. poll modes:
@@ -235,17 +237,30 @@ what the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) or
 serving it — uptime and latency from their own production traffic. It sends no
 probe requests to the model, so it spends **no tokens** and needs no API key.
 Grade the whole model (best endpoint wins, since the gateway routes around a
-failing provider) or one provider endpoint by name. Note the two gateways
-aggregate over different windows, and OpenRouter currently publishes no latency:
+failing provider) or one provider endpoint by name:
 [`docs/adapters/aigateway.md`](./docs/adapters/aigateway.md).
+
+### Notifications
+
+Status changes fan out to every configured target via the worker's notifier. All
+targets are optional; `delivery` defaults to `inline` (best-effort POST) and can be
+switched to `queue` for Cloudflare Queues retries + dead-lettering:
+
+- **Slack** — `notifications.slack.webhookUrl`, formatted as a Block Kit message.
+- **Telegram** — `notifications.telegram.chatId`; the message is POSTed to the
+  Telegram Bot API. The **bot token is a Cloudflare secret** (`TELEGRAM_BOT_TOKEN`,
+  set with `wrangler secret put`), never in YAML and never logged. If the token is
+  missing, only the Telegram target is skipped — other channels still deliver.
+- **Generic webhooks** — `notifications.webhooks[].url`, sent the raw
+  channel-agnostic payload.
 
 ### Internationalization
 
 The status page UI is translated into English (`en`), Simplified Chinese (`zh`),
-Japanese (`ja`), and Korean (`ko`); dates and relative times localize
-automatically.
+Japanese (`ja`), Korean (`ko`), and Indonesian (`id`); dates and relative times
+localize automatically.
 
-Each language is a URL prefix — `/en/`, `/ja/`, `/ko/`, `/zh/` — so every
+Each language is a URL prefix — `/en/`, `/ja/`, `/ko/`, `/zh/`, `/id/` — so every
 language is cached independently at the edge (no cache fragmentation). Visiting
 the bare `/` redirects to the visitor's language, chosen in this order:
 
@@ -269,7 +284,7 @@ changes, so badges never lag the page).
 ### Badges
 
 The badge routes speak the [shields.io endpoint](https://shields.io/badges/endpoint-badge)
-protocol — point shields.io at one and it renders the SVG; StatusBeam only
+protocol — point shields.io at one and it renders the SVG; StatusKita only
 emits the JSON. Replace `<origin>` with your status page's URL and `<slug>` with
 a component's slug (the `slug` from `status.config.yml`, or the slugified name):
 
@@ -302,10 +317,10 @@ Both send `Access-Control-Allow-Origin: *`, so a browser can fetch them directly
 
 ## Deployment
 
-StatusBeam deploys to any Cloudflare account (Workers + D1 + KV + Pages). Vercel
+StatusKita deploys to any Cloudflare account (Workers + D1 + KV + Pages). Vercel
 is also supported for the display layer via Astro's Vercel adapter.
 
-**You deploy StatusBeam as a package, not a fork** ([ADR-0002](docs/adr/0002-package-based-distribution.md)):
+**You deploy StatusKita as a package, not a fork** ([ADR-0002](docs/adr/0002-package-based-distribution.md)):
 your repo holds only your config, and the app is a versioned dependency. Scaffold a thin
 project, then let the `statusbeam` CLI provision D1 + KV, wire your custom domain and cron,
 apply the schema, upload `status.config.yml`, and deploy both Workers — idempotent, safe to
@@ -335,6 +350,7 @@ the Worker two secrets (purge-by-tag is [available on all Cloudflare plans](http
 ```bash
 bunx wrangler secret put CF_API_TOKEN   # API token with the "Cache Purge" permission
 bunx wrangler secret put CF_ZONE_ID     # the zone serving your status page
+bunx wrangler secret put TELEGRAM_BOT_TOKEN   # if you use Telegram notifications
 ```
 
 When these are unset the purge is skipped (logged, not fatal) and the page simply
@@ -353,7 +369,7 @@ fork-from-source appendix — is in **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 - [x] **Display layer** — Astro site, shadcn/ui component set, severity token system.
 - [x] **Uptime bars & charts** — 90-day adaptive timeline, per-component response-time graphs.
 - [x] **Incidents** — lifecycle model (Investigating → Identified → Monitoring → Resolved) + timeline UI.
-- [x] **Notify layer (part 1)** — Slack + generic webhook on status change, decoupled via Queues.
+- [x] **Notify layer (part 1)** — Slack + Telegram + generic webhook on status change, decoupled via Queues.
 - [x] **Edge cache** — `Cache-Tag` emit + purge-on-change loop between the check and display layers.
 - [x] **Badges & public API** — [shields.io endpoint](#badges--public-api) badges + JSON status API, edge-cached.
 - [x] **Statuspage adapter** — mirror any Atlassian Statuspage by page or component ([guide](./docs/adapters/statuspage.md)).
@@ -361,6 +377,7 @@ fork-from-source appendix — is in **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 - [x] **Statuspage webhooks** — real-time ingest via `POST /webhooks/statuspage/:slug`, cron as the backstop ([guide](./docs/adapters/statuspage.md#real-time-updates-via-webhooks)).
 - [x] **Sentry Uptime adapter** — mirror a [Sentry Uptime](https://docs.sentry.io/product/uptime-monitoring/) monitor via issue webhook (`POST /webhooks/sentry/:slug`) + optional Issues-API poll backstop ([guide](./docs/adapters/sentry.md)).
 - [x] **AI Gateway adapter** — track a model endpoint's published health on the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) or [OpenRouter](https://openrouter.ai/docs), token-free ([guide](./docs/adapters/aigateway.md)).
+- [x] **Indonesian locale** — full `id` translations, `/id/` page, switcher, and locale negotiation.
 
 **In progress / planned**
 
@@ -372,37 +389,27 @@ fork-from-source appendix — is in **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 
 ---
 
-## Prior art & inspiration
+## Prior art & attribution
 
+StatusKita is an **independent derivative** of
+[StatusBeam](https://github.com/pleaseai/statusbeam), whose maintainers and license
+are acknowledged below. StatusKita is not affiliated with or sponsored by the
+StatusBeam project.
+
+- [pleaseai/statusbeam](https://github.com/pleaseai/statusbeam) — the upstream
+  project this fork is based on.
 - [upptime/upptime](https://github.com/upptime/upptime) — the serverless-monitoring
   idea this project builds on.
 - [Statuspage.io](https://www.atlassian.com/software/statuspage) — the reference
   information architecture.
 - [Instatus](https://instatus.com) — static-first delivery and modern design.
-- [statping/statping](https://github.com/statping/statping) — a self-hosted,
-  single-binary status server (Go) with its own monitoring engine, notifiers,
-  and mobile app.
 - [OpenStatus](https://www.openstatus.dev) — open-source synthetic monitoring and
   status pages, with a globally distributed checker for latency-aware probing.
-- [CachetHQ/Cachet](https://cachethq.io) — a long-standing open-source status page
-  system (PHP/Laravel) centered on incident and component management.
-
----
-
-## Code review
-
-Pull requests to StatusBeam are reviewed by two AI code reviewers, both free for
-open source:
-
-- **[Greptile](https://www.greptile.com/open-source)** — free for non-commercial
-  MIT/Apache projects under its OSS program.
-- **[cubic](https://www.cubic.dev)** — free for public repositories.
-
-[![Reviewed by Greptile](https://img.shields.io/badge/code%20review-Greptile-2ea44f)](https://www.greptile.com/open-source)
-[![Reviewed by cubic](https://img.shields.io/badge/code%20review-cubic-14b8a6)](https://www.cubic.dev)
 
 ---
 
 ## License
 
-MIT
+MIT — see [LICENSE](./LICENSE). StatusKita is released under the same MIT license
+as its upstream, [StatusBeam](https://github.com/pleaseai/statusbeam), with
+attribution retained per the original copyright notice.

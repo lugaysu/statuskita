@@ -1,7 +1,7 @@
 import type { Wrangler } from '../lib/wrangler'
 /**
  * `statusbeam setup` — one-shot provision + configure (+ deploy) for a thin
- * StatusBeam repo. The TS port of scripts/setup.sh, but it writes into the user's
+ * StatusKita repo. The TS port of scripts/setup.sh, but it writes into the user's
  * own wrangler configs instead of the monorepo's. Idempotent: safe to re-run to
  * change the domain/cron or redeploy.
  */
@@ -92,5 +92,5 @@ export async function setup(opts: SetupOptions): Promise<void> {
   await pause('Press Enter when it\'s ready to deploy (Ctrl-C to abort)… ', { nonInteractive })
 
   await deploy({ cwd: opts.cwd })
-  success('StatusBeam is live. The page shows sample data until the first cron writes a real snapshot.')
+  success('StatusKita is live. The page shows sample data until the first cron writes a real snapshot.')
 }
